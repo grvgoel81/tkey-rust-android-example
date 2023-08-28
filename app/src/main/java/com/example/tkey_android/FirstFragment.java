@@ -18,7 +18,6 @@ import com.web3auth.tkey.ThresholdKey.Common.KeyPoint;
 import com.web3auth.tkey.ThresholdKey.Common.PrivateKey;
 import com.web3auth.tkey.ThresholdKey.Common.Result;
 import com.web3auth.tkey.ThresholdKey.KeyDetails;
-import com.web3auth.tkey.ThresholdKey.KeyReconstructionDetails;
 import com.web3auth.tkey.ThresholdKey.Modules.TSSModule;
 import com.web3auth.tkey.ThresholdKey.RssComm;
 import com.web3auth.tkey.ThresholdKey.ServiceProvider;
@@ -57,22 +56,18 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
-import java.security.Key;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableEntryException;
-import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 
 public class FirstFragment extends Fragment {
@@ -290,7 +285,9 @@ public class FirstFragment extends Fragment {
                         factorKey = new String(retrievedKey.getEncoded(), "UTF-8");
                         factor_key = factorKey;
                     } else {
-                        throw new Exception("factor key not found in storage");
+                        factorKey = "";
+                        //System.out.println(factorKey.hex);
+                        //throw new Exception("factor key not found in storage");
                     }
 
                     // input factor key from key store
@@ -345,6 +342,7 @@ public class FirstFragment extends Fragment {
                     HashMap<String, ArrayList<String>> defaultTssShareDescription = activity.transferKey.getShareDescriptions();
                     // todo: check if we need to format this
                 } else {
+
                     // new user
                     // check if reconstruction is working before creating tagged share
                     CountDownLatch lock4 = new CountDownLatch(1);
@@ -414,6 +412,7 @@ public class FirstFragment extends Fragment {
                     System.out.println("factorKey");
                     System.out.println(factorKey.hex);
 
+
                     // reconstruction
                     CountDownLatch lock7 = new CountDownLatch(1);
                     activity.transferKey.reconstruct(result -> {
@@ -449,34 +448,44 @@ public class FirstFragment extends Fragment {
                 double amount = 0.001;
                 String fromAdress = tssAccount.address;
                 String toAddress = tssAccount.address;
-                EthGetTransactionCount ethGetTransactionCount = web3j.ethGetTransactionCount(
-                        fromAdress,
-                        DefaultBlockParameterName.LATEST
-                ).send();
-                String data = "";
-                BigInteger nonce = ethGetTransactionCount.getTransactionCount();
-                BigInteger value = Convert.toWei(Double.toString(amount), Convert.Unit.ETHER).toBigInteger();
-                BigInteger gasLimit = BigInteger.valueOf(21000);
+                AtomicReference<RawTransaction> rawTransaction = null;
+                new Thread(() -> {
+                    try {
+                        EthGetTransactionCount ethGetTransactionCount = web3j.ethGetTransactionCount(
+                                fromAdress,
+                                DefaultBlockParameterName.LATEST
+                        ).send();
+                        String data = "";
+                        BigInteger nonce = ethGetTransactionCount.getTransactionCount();
+                        BigInteger value = Convert.toWei(Double.toString(amount), Convert.Unit.ETHER).toBigInteger();
+                        BigInteger gasLimit = BigInteger.valueOf(21000);
 
-                EthGasPrice gasPriceResponse = web3j.ethGasPrice().send();
-                BigInteger gasPrice = gasPriceResponse.getGasPrice();
+                        EthGasPrice gasPriceResponse = web3j.ethGasPrice().send();
+                        BigInteger gasPrice = gasPriceResponse.getGasPrice();
 
-                EthChainId chainIdResponse = web3j.ethChainId().sendAsync().get();
-                BigInteger chainId = chainIdResponse.getChainId();
-
-                RawTransaction rawTransaction = RawTransaction.createTransaction(
-                        chainId.longValue(),
-                        nonce,
-                        gasLimit,
-                        toAddress,
-                        value,
-                        data,
-                        gasPrice,
-                        gasPrice
-                );
-
-                String signature = tssAccount.sign(rawTransaction);
-                System.out.println("Signature: " + signature);
+                        EthChainId chainIdResponse = web3j.ethChainId().sendAsync().get();
+                        BigInteger chainId = chainIdResponse.getChainId();
+                        assert false;
+                        rawTransaction.set(RawTransaction.createTransaction(
+                                chainId.longValue(),
+                                nonce,
+                                gasLimit,
+                                toAddress,
+                                value,
+                                data,
+                                gasPrice,
+                                gasPrice
+                        ));
+                        String signature = tssAccount.sign(rawTransaction.get());
+                        System.out.println("Signature: " + signature);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    } catch (ExecutionException e) {
+                        throw new RuntimeException(e);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }).start();
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -522,6 +531,7 @@ public class FirstFragment extends Fragment {
         requireActivity().runOnUiThread(() -> {
             binding.googleLogin.setEnabled(false);
             binding.tKeyMPC.setEnabled(true);
+            binding.tssSignature.setEnabled(false);
         });
     }
 
@@ -530,6 +540,7 @@ public class FirstFragment extends Fragment {
         requireActivity().runOnUiThread(() -> {
             binding.googleLogin.setEnabled(false);
             binding.tKeyMPC.setEnabled(false);
+            binding.tssSignature.setEnabled(true);
         });
     }
 
