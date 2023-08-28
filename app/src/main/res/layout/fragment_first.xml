@@ -78,6 +78,12 @@
                     android:layout_height="wrap_content"
                     android:text="Tkey MPC" />
 
+                <Button
+                    android:id="@+id/tssSignature"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="TSS Singature" />
+
 
             </LinearLayout>
         </ScrollView>

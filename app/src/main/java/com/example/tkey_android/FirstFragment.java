@@ -43,11 +43,20 @@ import org.torusresearch.fetchnodedetails.types.NodeDetails;
 import org.torusresearch.torusutils.TorusUtils;
 import org.torusresearch.torusutils.types.SessionToken;
 import org.torusresearch.torusutils.types.TorusCtorOptions;
+import org.web3j.protocol.Web3j;
+import org.web3j.protocol.http.HttpService;
+import org.web3j.protocol.core.DefaultBlockParameterName;
+import org.web3j.protocol.core.methods.response.EthGasPrice;
+import org.web3j.protocol.core.methods.response.EthGetTransactionCount;
+import org.web3j.protocol.core.methods.response.EthChainId;
+import org.web3j.utils.Convert;
+import org.web3j.crypto.RawTransaction;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.security.KeyStore;
@@ -102,6 +111,7 @@ public class FirstFragment extends Fragment {
     private String evmAddress;
     private AtomicReference<String> pubKey = new AtomicReference<>("");
     private ArrayList<String> signatureString;
+    private Pair<String, String> tssShareResponse = new Pair<>("", "");
 
 
     // Set a value in the keystore
@@ -182,9 +192,9 @@ public class FirstFragment extends Fragment {
                 }
 
                 torusLoginResponseCf.whenCompleteAsync((torusLoginResponse, error) -> {
+                    hideLoading();
                     if (error != null) {
                         renderError(error);
-                        hideLoading();
                     } else {
                         activity.runOnUiThread(() -> {
                             evmAddress = torusLoginResponse.getPublicAddress();
@@ -194,7 +204,6 @@ public class FirstFragment extends Fragment {
                             binding.resultView.append("postboxKey: " + activity.postboxKey);
                             binding.resultView.append("publicKey: " + activity.postboxKey);
                             userHasLoggedInWithGoogle();
-                            hideLoading();
                         });
 
                     }
@@ -320,15 +329,14 @@ public class FirstFragment extends Fragment {
                     tssNonce = TSSModule.getTSSNonce(activity.transferKey, tag, false);
 
                     // gaurav: tssShare
-                    Pair<String, String>[] tssShareResponse = new Pair[0];
                     TSSModule.getTSSShare(activity.transferKey, tag, factorKey, 0, result -> {
                         if (result instanceof Result.Error) {
                             System.out.println("Could not create tagged tss shares for tkey");
                         }
-                        tssShareResponse[0] = ((Result.Success<Pair<String, String>>) result).data;
+                        tssShareResponse = ((Result.Success<Pair<String, String>>) result).data;
                     });
-                    tssShare = tssShareResponse[0].second;
-                    tssIndex = tssShareResponse[0].first;
+                    tssShare = tssShareResponse.second;
+                    tssIndex = tssShareResponse.first;
                     // tssShareResponse[0].first - tssIndex, tssShareResponse[0].second - tssShare
 
                     // nodeIndexes - getNodesData().getNodeIndexes() , tssEndpoints - nodeDetails.getTorusNodeTSSEndpoints();
@@ -424,13 +432,53 @@ public class FirstFragment extends Fragment {
                 hideLoading();
                 binding.resultView.append("Log: \n");
                 binding.resultView.append("Tkey Creaetion Successfull" + "\n");
-
-                EthereumTssAccount ethereumTssAccount = new EthereumTssAccount(evmAddress, pubKey.get(), factor_key, tssNonce, tssShare, tssIndex,
-                        "default", verifier, verifierId, nodeDetail.getTorusIndexes(), nodeDetail.getTorusNodeTSSEndpoints(),
-                        signatureString);
             } catch (Exception | RuntimeError e) {
                 hideLoading();
                 renderError(e);
+            }
+        });
+
+        binding.tssSignature.setOnClickListener(_view -> {
+            try {
+                EthereumTssAccount tssAccount = new EthereumTssAccount(evmAddress, pubKey.get(), factor_key, tssNonce, tssShare, tssIndex,
+                        "default", verifier, verifierId, nodeDetail.getTorusIndexes(), nodeDetail.getTorusNodeTSSEndpoints(),
+                        signatureString);
+
+                String url = "https://rpc.ankr.com/eth_goerli";
+                Web3j web3j = Web3j.build(new HttpService(url));
+                double amount = 0.001;
+                String fromAdress = tssAccount.address;
+                String toAddress = tssAccount.address;
+                EthGetTransactionCount ethGetTransactionCount = web3j.ethGetTransactionCount(
+                        fromAdress,
+                        DefaultBlockParameterName.LATEST
+                ).send();
+                String data = "";
+                BigInteger nonce = ethGetTransactionCount.getTransactionCount();
+                BigInteger value = Convert.toWei(Double.toString(amount), Convert.Unit.ETHER).toBigInteger();
+                BigInteger gasLimit = BigInteger.valueOf(21000);
+
+                EthGasPrice gasPriceResponse = web3j.ethGasPrice().send();
+                BigInteger gasPrice = gasPriceResponse.getGasPrice();
+
+                EthChainId chainIdResponse = web3j.ethChainId().sendAsync().get();
+                BigInteger chainId = chainIdResponse.getChainId();
+
+                RawTransaction rawTransaction = RawTransaction.createTransaction(
+                        chainId.longValue(),
+                        nonce,
+                        gasLimit,
+                        toAddress,
+                        value,
+                        data,
+                        gasPrice,
+                        gasPrice
+                );
+
+                String signature = tssAccount.sign(rawTransaction);
+                System.out.println("Signature: " + signature);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             }
         });
     }

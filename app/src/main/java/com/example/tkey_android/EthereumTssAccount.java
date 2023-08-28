@@ -34,7 +34,7 @@ public class EthereumTssAccount extends Sign {
 
     public EthereumTssAccount(String evmAddress, String pubkey, String factorKey, int tssNonce, String tssShare, String tssIndex,
                               String selectedTag, String verifier, String verifierID, BigInteger[] nodeIndexes,
-                              String[] tssEndpoints, List<String> authSigs) throws Exception {
+                              String[] tssEndpoints, List<String> authSigs) {
         this.factorKey = factorKey;
         this.selectedTag = selectedTag;
         this.verifier = verifier;
