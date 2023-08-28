@@ -1,6 +1,7 @@
 package com.example.tkey_android;
 
 import android.os.Bundle;
+import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -91,6 +92,18 @@ public class FirstFragment extends Fragment {
 
     private String REQUEST_ID = "";
 
+    private String factor_key = "";
+    private int tssNonce;
+    private String tssShare = "";
+    private String tssIndex = "";
+    private String verifierId = "";
+    private String verifier = "";
+    private NodeDetails nodeDetail;
+    private String evmAddress;
+    private AtomicReference<String> pubKey = new AtomicReference<>("");
+    private ArrayList<String> signatureString;
+
+
     // Set a value in the keystore
     private static final String KEYSTORE_FILENAME = "my_keystore.bks";
     private static final String KEYSTORE_PASSWORD = "keystorePassword";
@@ -174,7 +187,7 @@ public class FirstFragment extends Fragment {
                         hideLoading();
                     } else {
                         activity.runOnUiThread(() -> {
-                            String publicAddress = torusLoginResponse.getPublicAddress();
+                            evmAddress = torusLoginResponse.getPublicAddress();
                             activity.postboxKey = torusLoginResponse.getPrivateKey().toString(16);
                             activity.userInfo = torusLoginResponse.getUserInfo();
                             activity.sessionData = torusLoginResponse.getRetrieveSharesResponse().getSessionData();
@@ -208,11 +221,11 @@ public class FirstFragment extends Fragment {
                 }
 
                 // prepare tkey parameters
-                String verifierId = activity.userInfo.getVerifierId();
-                String verifier = activity.userInfo.getVerifier();
+                verifierId = activity.userInfo.getVerifierId();
+                verifier = activity.userInfo.getVerifier();
 
                 List<SessionToken> sessionTokenData = activity.sessionData.getSessionTokenData();
-                ArrayList<String> signatureString = new ArrayList<>();
+                signatureString = new ArrayList<>();
                 for (SessionToken item : sessionTokenData) {
                     if (item != null) {
                         JSONObject temp = new JSONObject();
@@ -225,7 +238,7 @@ public class FirstFragment extends Fragment {
                 // node details
                 FetchNodeDetails nodeManager = new FetchNodeDetails(TorusNetwork.SAPPHIRE_DEVNET);
                 CompletableFuture<NodeDetails> nodeDetailResult = nodeManager.getNodeDetails(verifier, verifierId);
-                NodeDetails nodeDetail = nodeDetailResult.get();
+                nodeDetail = nodeDetailResult.get();
 
                 // Torus Utils
                 TorusCtorOptions torusOptions = new TorusCtorOptions("Custom");
@@ -266,6 +279,7 @@ public class FirstFragment extends Fragment {
                     SecretKey retrievedKey = getKey(keyStore, alias, KEYSTORE_PASSWORD.toCharArray());
                     if (retrievedKey != null) {
                         factorKey = new String(retrievedKey.getEncoded(), "UTF-8");
+                        factor_key = factorKey;
                     } else {
                         throw new Exception("factor key not found in storage");
                     }
@@ -292,7 +306,6 @@ public class FirstFragment extends Fragment {
                     });
                     KeyDetails keyDetails2 = activity.transferKey.getKeyDetails();
 
-                    AtomicReference<String> pubKey = new AtomicReference<>("");
                     TSSModule.getTSSPubKey(activity.transferKey, tag, result -> {
                         if (result instanceof Result.Error) {
                             throw new RuntimeException("Could not getTSSPubKey tkey");
@@ -301,6 +314,25 @@ public class FirstFragment extends Fragment {
                         lock3.countDown();
                     });
                     lock3.await();
+
+                    // gaurav: selected tag - "default" in this example
+                    // gaurav: tssNonce
+                    tssNonce = TSSModule.getTSSNonce(activity.transferKey, tag, false);
+
+                    // gaurav: tssShare
+                    Pair<String, String>[] tssShareResponse = new Pair[0];
+                    TSSModule.getTSSShare(activity.transferKey, tag, factorKey, 0, result -> {
+                        if (result instanceof Result.Error) {
+                            System.out.println("Could not create tagged tss shares for tkey");
+                        }
+                        tssShareResponse[0] = ((Result.Success<Pair<String, String>>) result).data;
+                    });
+                    tssShare = tssShareResponse[0].second;
+                    tssIndex = tssShareResponse[0].first;
+                    // tssShareResponse[0].first - tssIndex, tssShareResponse[0].second - tssShare
+
+                    // nodeIndexes - getNodesData().getNodeIndexes() , tssEndpoints - nodeDetails.getTorusNodeTSSEndpoints();
+
 
                     HashMap<String, ArrayList<String>> defaultTssShareDescription = activity.transferKey.getShareDescriptions();
                     // todo: check if we need to format this
@@ -392,6 +424,10 @@ public class FirstFragment extends Fragment {
                 hideLoading();
                 binding.resultView.append("Log: \n");
                 binding.resultView.append("Tkey Creaetion Successfull" + "\n");
+
+                EthereumTssAccount ethereumTssAccount = new EthereumTssAccount(evmAddress, pubKey.get(), factor_key, tssNonce, tssShare, tssIndex,
+                        "default", verifier, verifierId, nodeDetail.getTorusIndexes(), nodeDetail.getTorusNodeTSSEndpoints(),
+                        signatureString);
             } catch (Exception | RuntimeError e) {
                 hideLoading();
                 renderError(e);
