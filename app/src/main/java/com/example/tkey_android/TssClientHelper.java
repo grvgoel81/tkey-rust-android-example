@@ -10,6 +10,7 @@ import com.web3auth.tss_client_android.client.TSSHelpers;
 import com.web3auth.tss_client_android.client.util.Secp256k1;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -24,11 +25,14 @@ public class TssClientHelper {
         int parties = 4;
         int clientIndex = parties - 1;
 
-        EndpointsData endpointsData = TSSHelpers.generateEndpoints(parties, clientIndex);
+        EndpointsData endpointsData = generateEndpoints(parties, clientIndex, tssEndpoints);
         List<String> endpoints = endpointsData.getEndpoints();
         List<String> socketUrls = endpointsData.getTssWSEndpoints();
         List<Integer> partyIndexes = endpointsData.getPartyIndexes();
-        List<BigInteger> nodeInd = nodeIndexes;
+        List<BigInteger> nodeInd = new ArrayList<>();
+        nodeInd.add(new BigInteger("1"));
+        nodeInd.add(new BigInteger("2"));
+        nodeInd.add(new BigInteger("3"));
 
         Map<String, String> coeffs = TSSHelpers.getServerCoefficients(nodeInd.toArray(new BigInteger[0]), userTssIndex);
 
@@ -53,5 +57,24 @@ public class TssClientHelper {
             b[i] = (byte)(Integer.parseInt(tmp, 16) & 0xff);
         }
         return b;
+    }
+
+    public static EndpointsData generateEndpoints(int parties, int clientIndex, List<String> tssEndpoints) {
+        List<String> endpoints = new ArrayList();
+        List<String> tssWSEndpoints = new ArrayList();
+        List<Integer> partyIndexes = new ArrayList();
+
+        for(int i = 0; i < parties; ++i) {
+            partyIndexes.add(i);
+            if (i == clientIndex) {
+                endpoints.add(null);
+                tssWSEndpoints.add(null);
+            } else {
+                endpoints.add(tssEndpoints.get(i));
+                tssWSEndpoints.add(tssEndpoints.get(i).replace("/tss", ""));
+            }
+        }
+
+        return new EndpointsData(endpoints, tssWSEndpoints, partyIndexes);
     }
 }
