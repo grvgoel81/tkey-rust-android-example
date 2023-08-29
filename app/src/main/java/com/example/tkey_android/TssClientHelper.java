@@ -10,7 +10,6 @@ import com.web3auth.tss_client_android.client.TSSHelpers;
 import com.web3auth.tss_client_android.client.util.Secp256k1;
 
 import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -40,8 +39,19 @@ public class TssClientHelper {
 
         TSSClient client = new TSSClient(session, clientIndex, partyIndexes.stream().mapToInt(Integer::intValue).toArray(),
                 endpoints.toArray(new String[0]), socketUrls.toArray(new String[0]), TSSHelpers.base64Share(share),
-                TSSHelpers.base64PublicKey(uncompressedPubKey.getBytes(StandardCharsets.UTF_8)));
+                TSSHelpers.base64PublicKey(convertToBytes(uncompressedPubKey)));
 
         return new Pair<>(client, coeffs);
+    }
+
+    public static byte[] convertToBytes (String s) {
+        String tmp;
+        byte[] b = new byte[s.length() / 2];
+        int i;
+        for (i = 0; i < s.length() / 2; i++) {
+            tmp = s.substring(i * 2, i * 2 + 2);
+            b[i] = (byte)(Integer.parseInt(tmp, 16) & 0xff);
+        }
+        return b;
     }
 }

@@ -336,9 +336,10 @@ public class FirstFragment extends Fragment {
                             System.out.println("Could not create tagged tss shares for tkey");
                         }
                         tssShareResponse = ((Result.Success<Pair<String, String>>) result).data;
+                        tssShare = tssShareResponse.second;
+                        tssIndex = tssShareResponse.first;
                     });
-                    tssShare = tssShareResponse.second;
-                    tssIndex = tssShareResponse.first;
+                    System.out.println("tssShare: " + tssShareResponse.second + ", tssIndex:" + tssShareResponse.first);
                     // tssShareResponse[0].first - tssIndex, tssShareResponse[0].second - tssShare
 
                     // nodeIndexes - getNodesData().getNodeIndexes() , tssEndpoints - nodeDetails.getTorusNodeTSSEndpoints();
@@ -447,7 +448,7 @@ public class FirstFragment extends Fragment {
             Map<String, String> coeffs;
             Pair<TSSClient, Map<String, String>> clientCoeffsPair;
             try {
-                clientCoeffsPair = TssClientHelper.helperTssClient("default", this.tssNonce, pubKey.get(), this.tssShare, this.tssIndex,
+                clientCoeffsPair = TssClientHelper.helperTssClient("default", tssNonce, pubKey.get(), tssShare, tssIndex,
                         Arrays.asList(nodeDetail.getTorusIndexes()), factor_key, this.verifier, verifierId, Arrays.asList(nodeDetail.getTorusNodeTSSEndpoints()));
                 client = clientCoeffsPair.first;
                 coeffs = clientCoeffsPair.second;
@@ -495,9 +496,7 @@ public class FirstFragment extends Fragment {
 
                 }
 
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            } catch (RuntimeError e) {
+            } catch (Exception | RuntimeError e) {
                 throw new RuntimeException(e);
             }
         });
@@ -543,11 +542,7 @@ public class FirstFragment extends Fragment {
                         ));
                         String signature = tssAccount.sign(rawTransaction.get());
                         System.out.println("Signature: " + signature);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    } catch (ExecutionException e) {
-                        throw new RuntimeException(e);
-                    } catch (InterruptedException e) {
+                    } catch (IOException | ExecutionException | InterruptedException e) {
                         throw new RuntimeException(e);
                     }
                 }).start();
