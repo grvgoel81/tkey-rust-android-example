@@ -79,10 +79,16 @@
                     android:text="Tkey MPC" />
 
                 <Button
-                    android:id="@+id/tssSignature"
+                    android:id="@+id/tssSignMessage"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="TSS Singature" />
+                    android:text="TSS Sign Message" />
+
+                <Button
+                    android:id="@+id/tssSignTransaction"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="TSS Sign Transaction" />
 
 
             </LinearLayout>

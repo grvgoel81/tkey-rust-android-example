@@ -23,6 +23,10 @@ import com.web3auth.tkey.ThresholdKey.RssComm;
 import com.web3auth.tkey.ThresholdKey.ServiceProvider;
 import com.web3auth.tkey.ThresholdKey.StorageLayer;
 import com.web3auth.tkey.ThresholdKey.ThresholdKey;
+import com.web3auth.tss_client_android.client.TSSClient;
+import com.web3auth.tss_client_android.client.TSSHelpers;
+import com.web3auth.tss_client_android.client.util.Triple;
+import com.web3auth.tss_client_android.dkls.Precompute;
 
 import org.json.JSONObject;
 import org.torusresearch.customauth.CustomAuth;
@@ -56,13 +60,16 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableEntryException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -437,7 +444,67 @@ public class FirstFragment extends Fragment {
             }
         });
 
-        binding.tssSignature.setOnClickListener(_view -> {
+        binding.tssSignMessage.setOnClickListener(_view -> {
+            TSSClient client;
+            Map<String, String> coeffs;
+            Pair<TSSClient, Map<String, String>> clientCoeffsPair;
+            try {
+                clientCoeffsPair = TssClientHelper.helperTssClient("default", this.tssNonce, pubKey.get(), this.tssShare, this.tssIndex,
+                        Arrays.asList(nodeDetail.getTorusIndexes()), factor_key, this.verifier, verifierId, Arrays.asList(nodeDetail.getTorusNodeTSSEndpoints()));
+                client = clientCoeffsPair.first;
+                coeffs = clientCoeffsPair.second;
+
+                // Wait for sockets to be connected
+                boolean connected;
+                try {
+                    connected = client.checkConnected();
+                } catch (Exception e) {
+                    throw new EthereumSignerError(EthereumSignerError.ErrorType.UNKNOWN_ERROR);
+                }
+
+                if (!connected) {
+                    throw new EthereumSignerError(EthereumSignerError.ErrorType.UNKNOWN_ERROR);
+                }
+
+                Precompute precompute;
+                try {
+                    precompute = client.precompute((Map<String, String>) coeffs, signatureString);
+                } catch (Exception e) {
+                    throw new EthereumSignerError(EthereumSignerError.ErrorType.UNKNOWN_ERROR);
+                }
+
+                boolean ready;
+                try {
+                    ready = client.isReady();
+                } catch (Exception e) {
+                    throw new EthereumSignerError(EthereumSignerError.ErrorType.UNKNOWN_ERROR);
+                }
+
+                if (ready) {
+                    String msg = "hello world";
+                    String msgHash = TSSHelpers.hashMessage(msg);
+                    Triple<BigInteger, BigInteger, Byte> signatureResult = client.sign(msgHash, true, msg, precompute, signatureString);
+                    client.cleanup(signatureString.toArray(new String[0]));
+
+                    String uncompressedPubKey = new KeyPoint(pubKey.get()).getPublicKey(KeyPoint.PublicKeyEncoding.FullAddress);
+                    boolean verify = TSSHelpers.verifySignature(msgHash, signatureResult.getFirst(),
+                            signatureResult.getSecond(), signatureResult.getThird(), uncompressedPubKey.getBytes(StandardCharsets.UTF_8));
+
+                    if (verify) {
+                        System.out.println(TSSHelpers.hexSignature(signatureResult.getFirst(),
+                                signatureResult.getSecond(), signatureResult.getThird()));
+                    }
+
+                }
+
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            } catch (RuntimeError e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        binding.tssSignTransaction.setOnClickListener(_view -> {
             try {
                 EthereumTssAccount tssAccount = new EthereumTssAccount(evmAddress, pubKey.get(), factor_key, tssNonce, tssShare, tssIndex,
                         "default", verifier, verifierId, nodeDetail.getTorusIndexes(), nodeDetail.getTorusNodeTSSEndpoints(),
@@ -524,6 +591,8 @@ public class FirstFragment extends Fragment {
         requireActivity().runOnUiThread(() -> {
             binding.googleLogin.setEnabled(true);
             binding.tKeyMPC.setEnabled(false);
+            binding.tssSignMessage.setEnabled(false);
+            binding.tssSignTransaction.setEnabled(false);
         });
     }
 
@@ -531,7 +600,8 @@ public class FirstFragment extends Fragment {
         requireActivity().runOnUiThread(() -> {
             binding.googleLogin.setEnabled(false);
             binding.tKeyMPC.setEnabled(true);
-            binding.tssSignature.setEnabled(false);
+            binding.tssSignMessage.setEnabled(false);
+            binding.tssSignTransaction.setEnabled(false);
         });
     }
 
@@ -540,7 +610,8 @@ public class FirstFragment extends Fragment {
         requireActivity().runOnUiThread(() -> {
             binding.googleLogin.setEnabled(false);
             binding.tKeyMPC.setEnabled(false);
-            binding.tssSignature.setEnabled(true);
+            binding.tssSignMessage.setEnabled(true);
+            binding.tssSignTransaction.setEnabled(true);
         });
     }
 
