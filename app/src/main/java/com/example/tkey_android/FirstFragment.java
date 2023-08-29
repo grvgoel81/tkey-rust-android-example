@@ -34,22 +34,20 @@ import org.torusresearch.customauth.types.SubVerifierDetails;
 import org.torusresearch.customauth.types.TorusLoginResponse;
 import org.torusresearch.customauth.types.UserCancelledException;
 import org.torusresearch.customauth.utils.Helpers;
-import org.torusresearch.fetchnodedetails.types.TorusNetwork;
-// fetch node details
 import org.torusresearch.fetchnodedetails.FetchNodeDetails;
 import org.torusresearch.fetchnodedetails.types.NodeDetails;
-// torus utils
+import org.torusresearch.fetchnodedetails.types.TorusNetwork;
 import org.torusresearch.torusutils.TorusUtils;
 import org.torusresearch.torusutils.types.SessionToken;
 import org.torusresearch.torusutils.types.TorusCtorOptions;
+import org.web3j.crypto.RawTransaction;
 import org.web3j.protocol.Web3j;
-import org.web3j.protocol.http.HttpService;
 import org.web3j.protocol.core.DefaultBlockParameterName;
+import org.web3j.protocol.core.methods.response.EthChainId;
 import org.web3j.protocol.core.methods.response.EthGasPrice;
 import org.web3j.protocol.core.methods.response.EthGetTransactionCount;
-import org.web3j.protocol.core.methods.response.EthChainId;
+import org.web3j.protocol.http.HttpService;
 import org.web3j.utils.Convert;
-import org.web3j.crypto.RawTransaction;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -285,7 +283,7 @@ public class FirstFragment extends Fragment {
                         factorKey = new String(retrievedKey.getEncoded(), "UTF-8");
                         factor_key = factorKey;
                     } else {
-                        factorKey = "";
+                        factorKey = "baa0401cb7a3bf07f1ea02dea47274cef7002a13be66bf7f7d2a81c036303b69";
                         //System.out.println(factorKey.hex);
                         //throw new Exception("factor key not found in storage");
                     }
@@ -465,7 +463,7 @@ public class FirstFragment extends Fragment {
 
                         EthChainId chainIdResponse = web3j.ethChainId().sendAsync().get();
                         BigInteger chainId = chainIdResponse.getChainId();
-                        assert false;
+
                         rawTransaction.set(RawTransaction.createTransaction(
                                 chainId.longValue(),
                                 nonce,
