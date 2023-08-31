@@ -101,7 +101,6 @@ public class EthereumTssAccount extends Sign {
 
         //to check
         String msgData = TSSHelpers.hashMessage(transaction.getData());
-        //byte[] msgData = Hash.keccak256(transaction.raw);
         String signingMessage = null;
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             signingMessage = Base64.getEncoder().encodeToString(msgData.getBytes(StandardCharsets.UTF_8));

@@ -1,9 +1,14 @@
 package com.example.tkey_android;
 
+import android.content.Context;
+import android.content.DialogInterface;
 import android.util.Pair;
+
+import androidx.appcompat.app.AlertDialog;
 
 import com.web3auth.tkey.RuntimeError;
 import com.web3auth.tkey.ThresholdKey.Common.KeyPoint;
+import com.web3auth.tss_client_android.client.Delimiters;
 import com.web3auth.tss_client_android.client.EndpointsData;
 import com.web3auth.tss_client_android.client.TSSClient;
 import com.web3auth.tss_client_android.client.TSSHelpers;
@@ -11,6 +16,7 @@ import com.web3auth.tss_client_android.client.util.Secp256k1;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -24,7 +30,7 @@ public class TssClientHelper {
         BigInteger userTssIndex = new BigInteger(tssIndex, 16);
         int parties = 4;
         int clientIndex = parties - 1;
-
+        System.out.println("PublicKey: " + publicKey);
         System.out.println("TssIndex: " + tssIndex);
 
         EndpointsData endpointsData = generateEndpoints(parties, clientIndex, tssEndpoints);
@@ -43,10 +49,22 @@ public class TssClientHelper {
         System.out.println("Share: " + share);
         System.out.println("ClientIndex: " + clientIndex);
         String uncompressedPubKey = new KeyPoint(publicKey).getPublicKey(KeyPoint.PublicKeyEncoding.FullAddress);
+        System.out.println("UncompressedPubKey: "+ uncompressedPubKey);
 
         TSSClient client = new TSSClient(session, clientIndex, partyIndexes.stream().mapToInt(Integer::intValue).toArray(),
                 endpoints.toArray(new String[0]), socketUrls.toArray(new String[0]), TSSHelpers.base64Share(share),
                 TSSHelpers.base64PublicKey(hexStringToByteArray(uncompressedPubKey)));
+
+        System.out.println("Session: "+ session);
+        System.out.println("ClientIndex: "+ clientIndex);
+        System.out.println("Parties: " + Arrays.toString(partyIndexes.stream().mapToInt(Integer::intValue).toArray()));
+        System.out.println("Endpoints: " + Arrays.toString(endpoints.toArray(new String[0])));
+        System.out.println("TssSocketEndpoints: " + Arrays.toString(socketUrls.toArray(new String[0])));
+        System.out.println("Share: " + TSSHelpers.base64Share(share));
+        System.out.println("PubKey: "+ TSSHelpers.base64PublicKey(hexStringToByteArray(uncompressedPubKey)));
+        System.out.println("socketSession: " + session.split(Delimiters.Delimiter4)[1]);
+
+        System.out.println("ServerCoeffs: " + coeffs);
 
         return new Pair<>(client, coeffs);
     }
@@ -90,5 +108,19 @@ public class TssClientHelper {
         }
 
         return new EndpointsData(endpoints, tssWSEndpoints, partyIndexes);
+    }
+
+    public static void showAlert(final Context context, final String message)
+    {
+        AlertDialog.Builder alertbox = new AlertDialog.Builder(context);
+        alertbox.setCancelable(false);
+        alertbox.setMessage(message);
+        alertbox.setNeutralButton("OK", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+            }
+        });
+
+        alertbox.show();
     }
 }

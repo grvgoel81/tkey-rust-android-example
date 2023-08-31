@@ -7,6 +7,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
@@ -68,6 +69,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableEntryException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -458,82 +460,7 @@ public class FirstFragment extends Fragment {
         });
 
         binding.tssSignMessage.setOnClickListener(_view -> {
-            TSSClient client;
-            Map<String, String> coeffs;
-            Pair<TSSClient, Map<String, String>> clientCoeffsPair;
-            try {
-                clientCoeffsPair = TssClientHelper.helperTssClient("default", tssNonce, pubKey.get(), tssShare, tssIndex,
-                        Arrays.asList(nodeDetail.getTorusIndexes()), factor_key, this.verifier, verifierId, Arrays.asList(nodeDetail.getTorusNodeTSSEndpoints()));
-                client = clientCoeffsPair.first;
-                coeffs = clientCoeffsPair.second;
-
-                // Wait for sockets to be connected
-                boolean connected;
-                try {
-                    connected = client.checkConnected();
-                } catch (Exception e) {
-                    throw new EthereumSignerError(EthereumSignerError.ErrorType.UNKNOWN_ERROR);
-                }
-
-                if(connected) {
-                    new Thread(() -> {
-                        Precompute precompute;
-                        try {
-                            precompute = client.precompute((Map<String, String>) coeffs, signatureString);
-                        } catch (Exception e) {
-                            System.out.println("Exception:" + e);
-                            e.printStackTrace();
-                            throw new EthereumSignerError(EthereumSignerError.ErrorType.UNKNOWN_ERROR);
-                        }
-
-                        boolean ready;
-                        try {
-                            ready = client.isReady();
-                        } catch (Exception e) {
-                            throw new EthereumSignerError(EthereumSignerError.ErrorType.UNKNOWN_ERROR);
-                        }
-
-                        if (ready) {
-                            String msg = "hello world";
-                            String msgHash = TSSHelpers.hashMessage(msg);
-                            Triple<BigInteger, BigInteger, Byte> signatureResult = null;
-                            try {
-                                signatureResult = client.sign(msgHash, true, msg, precompute, signatureString);
-                            } catch (TSSClientError e) {
-                                throw new RuntimeException(e);
-                            }
-                            try {
-                                client.cleanup(signatureString.toArray(new String[0]));
-                            } catch (TSSClientError e) {
-                                throw new RuntimeException(e);
-                            }
-
-                            String uncompressedPubKey = null;
-                            try {
-                                uncompressedPubKey = new KeyPoint(pubKey.get()).getPublicKey(KeyPoint.PublicKeyEncoding.FullAddress);
-                            } catch (RuntimeError e) {
-                                throw new RuntimeException(e);
-                            }
-                            boolean verify = TSSHelpers.verifySignature(msgHash, signatureResult.getFirst(),
-                                    signatureResult.getSecond(), signatureResult.getThird(), uncompressedPubKey.getBytes(StandardCharsets.UTF_8));
-
-                            if (verify) {
-                                System.out.println(TSSHelpers.hexSignature(signatureResult.getFirst(),
-                                        signatureResult.getSecond(), signatureResult.getThird()));
-                            } else {
-                                throw new RuntimeException("Signature could not be verified");
-                            }
-
-                        } else {
-                            throw new RuntimeException("Client is not ready, please try again");
-                        }
-                    }).start();
-                } else {
-                    throw new RuntimeException("Client is not connected, please try again");
-                }
-            } catch (Exception | RuntimeError e) {
-                throw new RuntimeException(e);
-            }
+             sign(true);
         });
 
         binding.tssSignTransaction.setOnClickListener(_view -> {
@@ -554,7 +481,7 @@ public class FirstFragment extends Fragment {
                                 fromAdress,
                                 DefaultBlockParameterName.LATEST
                         ).send();
-                        String data = "";
+                        String data = "hello world";
                         BigInteger nonce = ethGetTransactionCount.getTransactionCount();
                         BigInteger value = Convert.toWei(Double.toString(amount), Convert.Unit.ETHER).toBigInteger();
                         BigInteger gasLimit = BigInteger.valueOf(21000);
@@ -575,10 +502,101 @@ public class FirstFragment extends Fragment {
                                 gasPrice,
                                 gasPrice
                         ));
-                        String signature = tssAccount.sign(rawTransaction.get());
-                        System.out.println("Signature: " + signature);
-                        EthSendTransaction ethSendTransaction = web3j.ethSendRawTransaction(signature).send();
-                        System.out.println("Transaction: " + ethSendTransaction.getTransactionHash());
+
+                        TSSClient client;
+                        Map<String, String> coeffs;
+                        Pair<TSSClient, Map<String, String>> clientCoeffsPair;
+                        try {
+                            clientCoeffsPair = TssClientHelper.helperTssClient("default", tssNonce, pubKey.get(), tssShare, tssIndex,
+                                    Arrays.asList(nodeDetail.getTorusIndexes()), factor_key, this.verifier, verifierId, Arrays.asList(nodeDetail.getTorusNodeTSSEndpoints()));
+                            client = clientCoeffsPair.first;
+                            coeffs = clientCoeffsPair.second;
+
+                            // Wait for sockets to be connected
+                            boolean connected;
+                            try {
+                                connected = client.checkConnected();
+                            } catch (Exception e) {
+                                throw new EthereumSignerError(EthereumSignerError.ErrorType.UNKNOWN_ERROR);
+                            }
+
+                            if(connected) {
+                                new Thread(() -> {
+                                    Precompute precompute;
+                                    try {
+                                        precompute = client.precompute((Map<String, String>) coeffs, signatureString);
+                                    } catch (Exception e) {
+                                        System.out.println("Exception:" + e);
+                                        e.printStackTrace();
+                                        throw new EthereumSignerError(EthereumSignerError.ErrorType.UNKNOWN_ERROR);
+                                    }
+
+                                    boolean ready;
+                                    try {
+                                        ready = client.isReady();
+                                    } catch (Exception e) {
+                                        throw new EthereumSignerError(EthereumSignerError.ErrorType.UNKNOWN_ERROR);
+                                    }
+
+                                    if (ready) {
+                                        //to check
+                                        String msg = rawTransaction.get().getData();
+                                        if (data == null) {
+                                            throw new EthereumSignerError(EthereumSignerError.ErrorType.EMPTY_RAW_TRANSACTION);
+                                        }
+                                        String msgHash = TSSHelpers.hashMessage(data);
+
+                                        String signingMessage = null;
+                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                            signingMessage = Base64.getEncoder().encodeToString(msgHash.getBytes(StandardCharsets.UTF_8));
+                                        }
+
+                                        Triple<BigInteger, BigInteger, Byte> signatureResult;
+                                        try {
+                                            signatureResult = client.sign(msgHash, true, msg, precompute, signatureString);
+                                        } catch (TSSClientError e) {
+                                            throw new RuntimeException(e);
+                                        }
+                                        try {
+                                            client.cleanup(signatureString.toArray(new String[0]));
+                                        } catch (TSSClientError e) {
+                                            throw new RuntimeException(e);
+                                        }
+
+                                        String uncompressedPubKey;
+                                        try {
+                                            uncompressedPubKey = new KeyPoint(pubKey.get()).getPublicKey(KeyPoint.PublicKeyEncoding.FullAddress);
+                                        } catch (RuntimeError e) {
+                                            throw new RuntimeException(e);
+                                        }
+                                        boolean verify = TSSHelpers.verifySignature(msgHash, signatureResult.getFirst(),
+                                                signatureResult.getSecond(), signatureResult.getThird(), TssClientHelper.convertToBytes(uncompressedPubKey));
+
+                                        if (verify) {
+                                            String signature = "Signature: "+ TSSHelpers.hexSignature(signatureResult.getFirst(),
+                                                    signatureResult.getSecond(), signatureResult.getThird());
+                                            activity.runOnUiThread(() -> TssClientHelper.showAlert(activity, signature));
+                                            //activity.runOnUiThread(() -> binding.tssSignTransaction.setEnabled(false));
+                                            try {
+                                                EthSendTransaction ethSendTransaction = web3j.ethSendRawTransaction(signature).send();
+                                                System.out.println("Transaction: " + ethSendTransaction.getTransactionHash());
+                                            } catch (IOException e) {
+                                                throw new RuntimeException(e);
+                                            }
+                                        } else {
+                                            activity.runOnUiThread(() -> Toast.makeText(activity, "Signature could not be verified", Toast.LENGTH_LONG).show());
+                                        }
+
+                                    } else {
+                                        activity.runOnUiThread(() -> Toast.makeText(activity, "Client is not ready, please try again", Toast.LENGTH_LONG).show());
+                                    }
+                                }).start();
+                            } else {
+                                activity.runOnUiThread(() -> Toast.makeText(activity, "Client is not connected, please try again", Toast.LENGTH_LONG).show());
+                            }
+                        } catch (Exception | RuntimeError e) {
+                            throw new RuntimeException(e);
+                        }
                     } catch (IOException | ExecutionException | InterruptedException e) {
                         throw new RuntimeException(e);
                     }
@@ -596,6 +614,86 @@ public class FirstFragment extends Fragment {
             return (SecretKey) entry.getSecretKey();
         }
         return null;
+    }
+
+    private void sign(boolean isSigningMessage) {
+        TSSClient client;
+        Map<String, String> coeffs;
+        Pair<TSSClient, Map<String, String>> clientCoeffsPair;
+        try {
+            clientCoeffsPair = TssClientHelper.helperTssClient("default", tssNonce, pubKey.get(), tssShare, tssIndex,
+                    Arrays.asList(nodeDetail.getTorusIndexes()), factor_key, this.verifier, verifierId, Arrays.asList(nodeDetail.getTorusNodeTSSEndpoints()));
+            client = clientCoeffsPair.first;
+            coeffs = clientCoeffsPair.second;
+
+            // Wait for sockets to be connected
+            boolean connected;
+            try {
+                connected = client.checkConnected();
+            } catch (Exception e) {
+                throw new EthereumSignerError(EthereumSignerError.ErrorType.UNKNOWN_ERROR);
+            }
+
+            if(connected) {
+                new Thread(() -> {
+                    Precompute precompute;
+                    try {
+                        precompute = client.precompute((Map<String, String>) coeffs, signatureString);
+                    } catch (Exception e) {
+                        System.out.println("Exception:" + e);
+                        e.printStackTrace();
+                        throw new EthereumSignerError(EthereumSignerError.ErrorType.UNKNOWN_ERROR);
+                    }
+
+                    boolean ready;
+                    try {
+                        ready = client.isReady();
+                    } catch (Exception e) {
+                        throw new EthereumSignerError(EthereumSignerError.ErrorType.UNKNOWN_ERROR);
+                    }
+
+                    if (ready) {
+                        String msg = "hello world";
+                        String msgHash = TSSHelpers.hashMessage(msg);
+                        Triple<BigInteger, BigInteger, Byte> signatureResult;
+                        try {
+                            signatureResult = client.sign(msgHash, true, msg, precompute, signatureString);
+                        } catch (TSSClientError e) {
+                            throw new RuntimeException(e);
+                        }
+                        try {
+                            client.cleanup(signatureString.toArray(new String[0]));
+                        } catch (TSSClientError e) {
+                            throw new RuntimeException(e);
+                        }
+
+                        String uncompressedPubKey;
+                        try {
+                            uncompressedPubKey = new KeyPoint(pubKey.get()).getPublicKey(KeyPoint.PublicKeyEncoding.FullAddress);
+                        } catch (RuntimeError e) {
+                            throw new RuntimeException(e);
+                        }
+                        boolean verify = TSSHelpers.verifySignature(msgHash, signatureResult.getFirst(),
+                                signatureResult.getSecond(), signatureResult.getThird(), TssClientHelper.convertToBytes(uncompressedPubKey));
+
+                        if (verify) {
+                            String signature = "Signature: " + TSSHelpers.hexSignature(signatureResult.getFirst(),
+                                    signatureResult.getSecond(), signatureResult.getThird());
+                            requireActivity().runOnUiThread(() -> TssClientHelper.showAlert(requireActivity(), signature));
+                        } else {
+                            requireActivity().runOnUiThread(() -> Toast.makeText(requireActivity(), "Signature could not be verified", Toast.LENGTH_LONG).show());
+                        }
+
+                    } else {
+                        requireActivity().runOnUiThread(() -> Toast.makeText(requireActivity(), "Client is not ready, please try again", Toast.LENGTH_LONG).show());
+                    }
+                }).start();
+            } else {
+                requireActivity().runOnUiThread(() -> Toast.makeText(requireActivity(), "Client is not connected, please try again", Toast.LENGTH_LONG).show());
+            }
+        } catch (Exception | RuntimeError e) {
+            throw new RuntimeException(e);
+        }
     }
 
     // Set a key in the keystore
