@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">sapphire-dev-2-1.authnetwork.dev</domain>
+        <domain includeSubdomains="true">sapphire-dev-2-2.authnetwork.dev</domain>
+        <domain includeSubdomains="true">sapphire-dev-2-3.authnetwork.dev</domain>
+    </domain-config>
+</network-security-config>

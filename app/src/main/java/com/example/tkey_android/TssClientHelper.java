@@ -25,6 +25,8 @@ public class TssClientHelper {
         int parties = 4;
         int clientIndex = parties - 1;
 
+        System.out.println("TssIndex: " + tssIndex);
+
         EndpointsData endpointsData = generateEndpoints(parties, clientIndex, tssEndpoints);
         List<String> endpoints = endpointsData.getEndpoints();
         List<String> socketUrls = endpointsData.getTssWSEndpoints();
@@ -38,12 +40,13 @@ public class TssClientHelper {
 
         BigInteger shareUnsigned = new BigInteger(tssShare, 16);
         BigInteger share = shareUnsigned;
-
+        System.out.println("Share: " + share);
+        System.out.println("ClientIndex: " + clientIndex);
         String uncompressedPubKey = new KeyPoint(publicKey).getPublicKey(KeyPoint.PublicKeyEncoding.FullAddress);
 
         TSSClient client = new TSSClient(session, clientIndex, partyIndexes.stream().mapToInt(Integer::intValue).toArray(),
                 endpoints.toArray(new String[0]), socketUrls.toArray(new String[0]), TSSHelpers.base64Share(share),
-                TSSHelpers.base64PublicKey(convertToBytes(uncompressedPubKey)));
+                TSSHelpers.base64PublicKey(hexStringToByteArray(uncompressedPubKey)));
 
         return new Pair<>(client, coeffs);
     }
@@ -57,6 +60,17 @@ public class TssClientHelper {
             b[i] = (byte)(Integer.parseInt(tmp, 16) & 0xff);
         }
         return b;
+    }
+
+    public static byte[] hexStringToByteArray(String s) {
+        int len = s.length();
+        byte[] data = new byte[len / 2];
+
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4) + Character.digit(s.charAt(i + 1), 16));
+        }
+        System.out.println("after conversion byte array: " + data + "length: " + data.length);
+        return data;
     }
 
     public static EndpointsData generateEndpoints(int parties, int clientIndex, List<String> tssEndpoints) {
