@@ -24,7 +24,8 @@ public class TssClientHelper {
     public static Pair<TSSClient, Map<String, String>> helperTssClient(String selectedTag, int tssNonce, String publicKey, String tssShare, String tssIndex, List<BigInteger> nodeIndexes, String factorKey, String verifier, String verifierId, List<String> tssEndpoints) throws Exception, RuntimeError {
         BigInteger randomKey = new BigInteger(1, Secp256k1.GenerateECKey());
         BigInteger random = randomKey.add(BigInteger.valueOf(System.currentTimeMillis() / 1000));
-        String sessionNonce = TSSHelpers.hashMessage(random.toString(16));
+        String sessionNonce = //random.toString(); //TSSHelpers.hashMessage(random.toString(16));
+                TSSHelpers.base64ToBase64url(TSSHelpers.hashMessage(random.toByteArray().toString()));
         String session = TSSHelpers.assembleFullSession(verifier, verifierId, selectedTag, Integer.toString(tssNonce), sessionNonce);
 
         System.out.println("PublicKey: " + publicKey);
