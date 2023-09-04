@@ -27,11 +27,12 @@ public class TssClientHelper {
         String sessionNonce = TSSHelpers.hashMessage(random.toString(16));
         String session = TSSHelpers.assembleFullSession(verifier, verifierId, selectedTag, Integer.toString(tssNonce), sessionNonce);
 
+        System.out.println("PublicKey: " + publicKey);
+        System.out.println("TssIndex: " + tssIndex);
+
         BigInteger userTssIndex = new BigInteger(tssIndex, 16);
         int parties = 4;
         int clientIndex = parties - 1;
-        System.out.println("PublicKey: " + publicKey);
-        System.out.println("TssIndex: " + tssIndex);
 
         EndpointsData endpointsData = generateEndpoints(parties, clientIndex, tssEndpoints);
         List<String> endpoints = endpointsData.getEndpoints();

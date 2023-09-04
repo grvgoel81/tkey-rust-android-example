@@ -1,6 +1,6 @@
 package com.example.tkey_android;
-import android.content.Context;
 
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Pair;
@@ -60,9 +60,6 @@ import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.protocol.http.HttpService;
 import org.web3j.utils.Convert;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -375,7 +372,6 @@ public class FirstFragment extends Fragment {
                     // tssShareResponse[0].first - tssIndex, tssShareResponse[0].second - tssShare
 
                     // nodeIndexes - getNodesData().getNodeIndexes() , tssEndpoints - nodeDetails.getTorusNodeTSSEndpoints();
-
 
                     HashMap<String, ArrayList<String>> defaultTssShareDescription = activity.transferKey.getShareDescriptions();
                     // todo: check if we need to format this
