@@ -90,6 +90,12 @@
                     android:layout_height="wrap_content"
                     android:text="TSS Sign Transaction" />
 
+                <Button
+                    android:id="@+id/tKeyReset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Tkey Reset" />
+
 
             </LinearLayout>
         </ScrollView>

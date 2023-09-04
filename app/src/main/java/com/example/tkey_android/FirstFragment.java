@@ -1,5 +1,7 @@
 package com.example.tkey_android;
+import android.content.Context;
 
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Pair;
 import android.view.LayoutInflater;
@@ -31,6 +33,7 @@ import com.web3auth.tss_client_android.client.TSSHelpers;
 import com.web3auth.tss_client_android.client.util.Triple;
 import com.web3auth.tss_client_android.dkls.Precompute;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.torusresearch.customauth.CustomAuth;
 import org.torusresearch.customauth.types.Auth0ClientOptions.Auth0ClientOptionsBuilder;
@@ -93,6 +96,8 @@ public class FirstFragment extends Fragment {
         System.loadLibrary("dkls-native");
     }
 
+    private static final String PREF_NAME = "TKEY";
+    private static final String STRING_KEY = "FactorKey";
 
     private final String[] allowedBrowsers = new String[]{
             "com.android.chrome", // Chrome stable
@@ -225,21 +230,34 @@ public class FirstFragment extends Fragment {
             }
         });
 
+        binding.tKeyReset.setOnClickListener(view1 -> {
+            try {
+                showLoading();
+
+                activity.transferStorage = new StorageLayer(true, "https://metadata.tor.us", 2);
+                activity.transferProvider = new ServiceProvider(true, activity.postboxKey,true, null, null, null);
+                activity.transferKey = new ThresholdKey(null, null, activity.transferStorage, activity.transferProvider, null, null, true, false, null);
+
+                CountDownLatch lock = new CountDownLatch(1);
+                activity.transferKey.storage_layer_set_metadata(activity.postboxKey, "{ \"message\": \"KEY_NOT_FOUND\" }", result -> {
+                    if (result instanceof Result.Error) {
+                        throw new RuntimeException("Could not initialize tkey");
+                    }
+                    lock.countDown();
+                });
+                lock.await();
+
+            } catch (InterruptedException | JSONException | RuntimeError e) {
+                throw new RuntimeException(e);
+            } finally {
+                hideLoading();
+            }
+        });
+
         binding.tKeyMPC.setOnClickListener(view1 -> {
             try {
 
                 showLoading();
-                // Keystore initialization from local bks file
-                String alias = "myAlias";
-                File keystoreFile = new File(getContext().getFilesDir(), KEYSTORE_FILENAME);
-                KeyStore keyStore = KeyStore.getInstance("BKS");
-                if (keystoreFile.exists()) {
-                    // create a new file with password if not exists
-                    keyStore.load(new FileInputStream(keystoreFile), KEYSTORE_PASSWORD.toCharArray());
-                } else {
-                    // load file with password if exists
-                    keyStore.load(null, KEYSTORE_PASSWORD.toCharArray());
-                }
 
                 // prepare tkey parameters
                 verifierId = activity.userInfo.getVerifierId();
@@ -301,14 +319,12 @@ public class FirstFragment extends Fragment {
 
                     // fetch key from keystore and assign it to factorKey
                     String factorKey = "";
-                    SecretKey retrievedKey = getKey(keyStore, alias, KEYSTORE_PASSWORD.toCharArray());
+                    String retrievedKey = getStringFromSharedPreferences();
+
                     if (retrievedKey != null) {
-                        factorKey = new String(retrievedKey.getEncoded(), "UTF-8");
-                        factor_key = factorKey;
+                        factorKey = retrievedKey;
                     } else {
-                        factorKey = "baa0401cb7a3bf07f1ea02dea47274cef7002a13be66bf7f7d2a81c036303b69";
-                        //System.out.println(factorKey.hex);
-                        //throw new Exception("factor key not found in storage");
+                        throw new Exception("factor key not found in storage");
                     }
 
                     // input factor key from key store
@@ -424,16 +440,10 @@ public class FirstFragment extends Fragment {
                     });
                     lock6.await();
 
-                    byte[] factorKeyStore = factorKey.hex.getBytes("UTF-8");
-                    // Store the byte array as a keystore entry
-                    setKey(keyStore, alias, factorKeyStore, KEYSTORE_PASSWORD.toCharArray());
-                    // Save keystore to file
-                    try (FileOutputStream fos = new FileOutputStream(keystoreFile)) {
-                        keyStore.store(fos, KEYSTORE_PASSWORD.toCharArray());
-                    }
+                    saveStringToSharedPreferences(factorKey.hex);
+
                     System.out.println("factorKey");
                     System.out.println(factorKey.hex);
-
 
                     // reconstruction
                     CountDownLatch lock7 = new CountDownLatch(1);
@@ -702,6 +712,18 @@ public class FirstFragment extends Fragment {
         keyStore.setEntry(alias, new KeyStore.SecretKeyEntry(secretKey), new KeyStore.PasswordProtection(password));
     }
 
+    private void saveStringToSharedPreferences(String data) {
+        SharedPreferences sharedPreferences = getActivity().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putString(STRING_KEY, data);
+        editor.apply();
+    }
+
+    private String getStringFromSharedPreferences() {
+        SharedPreferences sharedPreferences = getActivity().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        return sharedPreferences.getString(STRING_KEY, null);
+    }
+
     private void renderError(Throwable error) {
         requireActivity().runOnUiThread(() -> {
             Throwable reason = Helpers.unwrapCompletionException(error);
@@ -721,6 +743,7 @@ public class FirstFragment extends Fragment {
             binding.tKeyMPC.setEnabled(false);
             binding.tssSignMessage.setEnabled(false);
             binding.tssSignTransaction.setEnabled(false);
+            binding.tKeyReset.setEnabled(false);
         });
     }
 
@@ -730,6 +753,7 @@ public class FirstFragment extends Fragment {
             binding.tKeyMPC.setEnabled(true);
             binding.tssSignMessage.setEnabled(false);
             binding.tssSignTransaction.setEnabled(false);
+            binding.tKeyReset.setEnabled(true);
         });
     }
 
@@ -740,6 +764,7 @@ public class FirstFragment extends Fragment {
             binding.tKeyMPC.setEnabled(false);
             binding.tssSignMessage.setEnabled(true);
             binding.tssSignTransaction.setEnabled(true);
+            binding.tKeyReset.setEnabled(false);
         });
     }
 
