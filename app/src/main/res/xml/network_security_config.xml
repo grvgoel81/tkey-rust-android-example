@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates overridePins="true" src="user" />
+        </trust-anchors>
+    </base-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">sapphire-dev-2-1.authnetwork.dev</domain>
+        <domain includeSubdomains="true">sapphire-dev-2-2.authnetwork.dev</domain>
+        <domain includeSubdomains="true">sapphire-dev-2-3.authnetwork.dev</domain>
+        <domain includeSubdomains="true">sapphire-dev-2-4.authnetwork.dev</domain>
+        <domain includeSubdomains="true">sapphire-dev-2-5.authnetwork.dev</domain>
+    </domain-config>
+</network-security-config>

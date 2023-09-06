@@ -23,7 +23,15 @@ import com.web3auth.tkey.RuntimeError;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import org.torusresearch.customauth.types.TorusVerifierUnionResponse;
+import org.torusresearch.torusutils.types.SessionData;
+
 public class MainActivity extends AppCompatActivity {
+
+    public TorusVerifierUnionResponse userInfo;
+
+    public SessionData sessionData;
+    
     private AppBarConfiguration appBarConfiguration;
 
     public ThresholdKey tKey;
